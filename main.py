@@ -6,11 +6,12 @@ import time
 from typing import List, Dict, Tuple, Set
 from dataclasses import dataclass
 from copy import deepcopy
+from collections import deque
 
 
 class Graph:
     """
-    Model:  Responsible ONLY for the graph data structure.
+    Model:   Responsible ONLY for the graph data structure.
     """
 
     def __init__(self, vertices):
@@ -23,7 +24,7 @@ class Graph:
 
 
 class GraphVisualizer:
-    """View:  Visualizes a colored graph using NetworkX"""
+    """View:   Visualizes a colored graph using NetworkX"""
 
     def __init__(self, graph):
         self.graph_data = graph
@@ -62,11 +63,100 @@ class GraphVisualizer:
 
 
 # ============================================
+# BFS COLORING ALGORITHM
+# ============================================
+class BFSColoring:
+    """
+    BFS-based greedy graph coloring algorithm.
+    Colors vertices in BFS traversal order, using the smallest available color.
+    """
+
+    def __init__(self, graph, start_vertex=0):
+        self.graph = graph
+        self.start_vertex = start_vertex
+        self.color_assignment = [-1] * graph.V
+        self.chromatic_number = 0
+        self.nodes_visited = 0
+
+    def get_available_color(self, vertex):
+        """
+        Find the smallest color not used by adjacent vertices
+        """
+        # Get colors of adjacent vertices
+        adjacent_colors = set()
+        for neighbor in self.graph.adj[vertex]:
+            if self.color_assignment[neighbor] != -1:
+                adjacent_colors.add(self.color_assignment[neighbor])
+
+        # Find smallest available color (starting from 0)
+        color = 0
+        while color in adjacent_colors:
+            color += 1
+
+        return color
+
+    def solve(self, verbose=True):
+        """
+        Perform BFS coloring on the graph
+        """
+        if verbose:
+            print(f"\nStarting BFS Coloring from vertex {self.start_vertex}...")
+
+        start_time = time.time()
+
+        # Initialize BFS
+        visited = [False] * self.graph.V
+        queue = deque([self.start_vertex])
+        visited[self.start_vertex] = True
+
+        # BFS traversal and coloring
+        while queue:
+            vertex = queue.popleft()
+            self.nodes_visited += 1
+
+            # Assign the smallest available color
+            color = self.get_available_color(vertex)
+            self.color_assignment[vertex] = color
+
+            # Update chromatic number
+            self.chromatic_number = max(self.chromatic_number, color + 1)
+
+            # Add unvisited neighbors to queue
+            for neighbor in self.graph.adj[vertex]:
+                if not visited[neighbor]:
+                    visited[neighbor] = True
+                    queue.append(neighbor)
+
+        # Handle disconnected components
+        for vertex in range(self.graph.V):
+            if self.color_assignment[vertex] == -1:
+                color = self.get_available_color(vertex)
+                self.color_assignment[vertex] = color
+                self.chromatic_number = max(self.chromatic_number, color + 1)
+                self.nodes_visited += 1
+
+        end_time = time.time()
+        elapsed_time = end_time - start_time
+
+        # Convert 0-indexed colors to 1-indexed for consistency
+        self.color_assignment = [c + 1 for c in self.color_assignment]
+
+        if verbose:
+            print(f"\n✓ BFS Coloring Complete!")
+            print(f"Chromatic Number: {self.chromatic_number}")
+            print(f"Color assignments: {self.color_assignment}")
+            print(f"Nodes visited: {self.nodes_visited}")
+            print(f"Computational time: {elapsed_time:.6f} seconds")
+
+        return self.color_assignment, self.chromatic_number, elapsed_time
+
+
+# ============================================
 # BACKTRACKING ALGORITHM
 # ============================================
 class BackTracking:
     """
-    Controller/Service:  Responsible for the algorithmic logic.
+    Controller/Service:   Responsible for the algorithmic logic.
     """
 
     def __init__(self, graph):
@@ -238,14 +328,14 @@ class HillClimbing:
                     best_colors = self.get_chromatic_number(best_solution)
 
                     if verbose and (iteration % 100 == 0 or best_conflicts == 0):
-                        print(f"Iteration {iteration}:  Conflicts={best_conflicts}, Colors={best_colors}")
+                        print(f"Iteration {iteration}:   Conflicts={best_conflicts}, Colors={best_colors}")
             else:
                 # No better neighbor found (local optimum)
                 stagnation_counter += 1
 
                 if stagnation_counter >= max_stagnation:
                     if verbose:
-                        print(f"Stagnation detected at iteration {iteration}.  Restarting...")
+                        print(f"Stagnation detected at iteration {iteration}.   Restarting...")
                     # Random restart
                     self.current_solution = self.generate_initial_solution()
                     self.current_conflicts = self.count_conflicts(self.current_solution)
@@ -263,7 +353,7 @@ class HillClimbing:
                 print(f"Best solution has {best_conflicts} conflicts")
                 print(f"Colors used: {best_colors}")
             print(f"Total iterations: {self.iterations}")
-            print(f"Computational time:  {elapsed_time:.6f} seconds")
+            print(f"Computational time:   {elapsed_time:.6f} seconds")
 
         return best_solution, best_colors if best_conflicts == 0 else None, elapsed_time
 
@@ -334,7 +424,7 @@ class BeliefSpace:
 
     def _update_normative(self, valid_individuals):
         """Track which colors work best for each vertex"""
-        for ind in valid_individuals[: self.size]:
+        for ind in valid_individuals[:  self.size]:
             for vertex, color in enumerate(ind.coloring):
                 if color not in self.color_frequency[vertex]:
                     self.color_frequency[vertex][color] = 0
@@ -405,7 +495,7 @@ class CulturalAlgorithm:
     def crossover(self, parent1, parent2):
         """Single-point crossover"""
         point = random.randint(1, self.graph.V - 1)
-        child_coloring = parent1.coloring[: point] + parent2.coloring[point:]
+        child_coloring = parent1.coloring[:  point] + parent2.coloring[point:]
         return Individual(self.graph, child_coloring, max_colors=self.max_colors)
 
     def mutate(self, individual):
@@ -466,13 +556,13 @@ class CulturalAlgorithm:
             if self.best_solution.is_valid():
                 print(f"\n✓ Valid Solution Found!")
                 print(f"Chromatic Number: {self.best_solution.chromatic_number}")
-                print(f"Color assignments:  {self.best_solution.coloring}")
+                print(f"Color assignments:   {self.best_solution.coloring}")
             else:
                 print(f"\n✗ No valid solution found")
                 print(f"Best solution has {self.best_solution.conflicts} conflicts")
-            print(f"Computational time: {elapsed:.2f} seconds")
+            print(f"Computational time:  {elapsed:.2f} seconds")
 
-        return self.best_solution.coloring, self.best_solution.chromatic_number if self.best_solution.is_valid() else None
+        return self.best_solution.coloring, self.best_solution.chromatic_number if self.best_solution.is_valid() else None, elapsed
 
 
 # ============================================
@@ -504,7 +594,7 @@ def load_graph(filename):
 if __name__ == "__main__":
     print("=" * 70)
     print("GRAPH COLORING PROBLEM SOLVER".center(70))
-    print("Backtracking, Hill Climbing & Cultural Algorithm".center(70))
+    print("Backtracking, BFS, Hill Climbing & Cultural Algorithm".center(70))
     print("=" * 70)
 
     # INPUT MODE
@@ -516,14 +606,14 @@ if __name__ == "__main__":
 
     # OPTION 1: MANUAL INPUT
     if input_choice == '1':
-        n = int(input("\nEnter number of vertices: "))
+        n = int(input("\nEnter number of vertices:  "))
         my_graph = Graph(n)
 
         edges_count = int(input("Enter number of edges: "))
-        print("Enter edges as:  u v  (1-based vertices)")
+        print("Enter edges as:   u v  (1-based vertices)")
 
         for i in range(edges_count):
-            u, v = map(int, input(f"Edge {i + 1}:  ").split())
+            u, v = map(int, input(f"Edge {i + 1}:   ").split())
             my_graph.add_edge(u - 1, v - 1)
 
     # OPTION 2: LOAD FROM FILE
@@ -533,7 +623,7 @@ if __name__ == "__main__":
         print(f"✓ Loaded graph with {my_graph.V} vertices")
 
     else:
-        print("Invalid choice.  Exiting...")
+        print("Invalid choice.   Exiting...")
         exit()
 
     # ALGORITHM SELECTION
@@ -542,11 +632,12 @@ if __name__ == "__main__":
     print("=" * 70)
 
     print("1. Backtracking Algorithm")
-    print("2. Hill Climbing Algorithm")
-    print("3. Cultural Algorithm")
-    print("4. All Algorithms")
+    print("2. BFS Coloring Algorithm")
+    print("3. Hill Climbing Algorithm")
+    print("4. Cultural Algorithm")
+    print("5. All Algorithms")
 
-    choice = input("\nEnter choice (1/2/3/4): ").strip()
+    choice = input("\nEnter choice (1/2/3/4/5): ").strip()
 
     # ===============================================
     # 1) BACKTRACKING ONLY
@@ -563,9 +654,24 @@ if __name__ == "__main__":
         visualizer.draw_solution(solution, chromatic_num, elapsed_time, "Backtracking")
 
     # ===============================================
-    # 2) HILL CLIMBING ONLY
+    # 2) BFS COLORING ONLY
     # ===============================================
     elif choice == '2':
+        start_vertex = int(input(f"Enter start vertex (0 to {my_graph.V - 1}, default 0): ") or "0")
+
+        bfs_solver = BFSColoring(my_graph, start_vertex=start_vertex)
+        solution, chromatic_num, elapsed_time = bfs_solver.solve()
+
+        print("\n--- Performance Metrics ---")
+        print(f"Nodes Visited: {bfs_solver.nodes_visited}")
+
+        visualizer = GraphVisualizer(my_graph)
+        visualizer.draw_solution(solution, chromatic_num, elapsed_time, "BFS Coloring")
+
+    # ===============================================
+    # 3) HILL CLIMBING ONLY
+    # ===============================================
+    elif choice == '3':
         print("\n--- Hill Climbing Parameters ---")
         max_iter = int(input("Max iterations (default 1000): ") or "1000")
         max_colors = int(input(f"Max colors (default {my_graph.V}): ") or str(my_graph.V))
@@ -577,14 +683,14 @@ if __name__ == "__main__":
         if chromatic_num:
             visualizer.draw_solution(solution, chromatic_num, elapsed_time, "Hill Climbing")
         else:
-            print("Could not find valid solution.  Displaying best attempt:")
+            print("Could not find valid solution.   Displaying best attempt:")
             colors_used = len(set(solution))
             visualizer.draw_solution(solution, colors_used, elapsed_time, "Hill Climbing (Invalid)")
 
     # ===============================================
-    # 3) CULTURAL ALGORITHM ONLY
+    # 4) CULTURAL ALGORITHM ONLY
     # ===============================================
-    elif choice == '3':
+    elif choice == '4':
         print("\n--- Cultural Algorithm Parameters ---")
         pop_size = int(input("Population size (default 50): ") or "50")
         max_gen = int(input("Max generations (default 100): ") or "100")
@@ -600,29 +706,47 @@ if __name__ == "__main__":
             belief_space_size=belief_size
         )
 
-        solution, chromatic_num = ca.solve(max_generations=max_gen)
+        solution, chromatic_num, elapsed_time = ca.solve(max_generations=max_gen)
 
         visualizer = GraphVisualizer(my_graph)
         if chromatic_num:
-            visualizer.draw_solution(solution, chromatic_num, elapsed_time=0.0, algorithm_name="Cultural Algorithm")
+            visualizer.draw_solution(solution, chromatic_num, elapsed_time=elapsed_time,
+                                     algorithm_name="Cultural Algorithm")
 
     # ===============================================
-    # 4) ALL ALGORITHMS
+    # 5) ALL ALGORITHMS
     # ===============================================
-    elif choice == '4':
+    elif choice == '5':
         results = {}
 
-        # Backtracking
+        # BFS Coloring (Run first as it's fastest and always finds a solution)
         print("\n" + "=" * 70)
-        print("=== BACKTRACKING ===")
+        print("=== BFS COLORING ===")
         print("=" * 70)
-        bt_solver = BackTracking(my_graph)
-        bt_solution, bt_chromatic, bt_time = bt_solver.solve()
-        results['Backtracking'] = (bt_solution, bt_chromatic, bt_time)
+        bfs_solver = BFSColoring(my_graph, start_vertex=0)
+        bfs_solution, bfs_chromatic, bfs_time = bfs_solver.solve()
+        results['BFS Coloring'] = (bfs_solution, bfs_chromatic, bfs_time)
 
-        print("\n--- Backtracking Performance Metrics ---")
-        print(f"Recursive Calls: {bt_solver.recursive_calls}")
-        print(f"Pruned Branches: {bt_solver.pruned_branches}")
+        print("\n--- BFS Performance Metrics ---")
+        print(f"Nodes Visited: {bfs_solver.nodes_visited}")
+
+        # Backtracking (Only run if graph is small)
+        if my_graph.V <= 50:  # Adjust threshold as needed
+            print("\n" + "=" * 70)
+            print("=== BACKTRACKING ===")
+            print("=" * 70)
+            bt_solver = BackTracking(my_graph)
+            bt_solution, bt_chromatic, bt_time = bt_solver.solve()
+            results['Backtracking'] = (bt_solution, bt_chromatic, bt_time)
+
+            print("\n--- Backtracking Performance Metrics ---")
+            print(f"Recursive Calls: {bt_solver.recursive_calls}")
+            print(f"Pruned Branches:  {bt_solver.pruned_branches}")
+        else:
+            print("\n" + "=" * 70)
+            print("=== BACKTRACKING ===")
+            print("=" * 70)
+            print(f"Skipping Backtracking (graph too large:  {my_graph.V} vertices)")
 
         # Hill Climbing
         print("\n" + "=" * 70)
@@ -653,8 +777,8 @@ if __name__ == "__main__":
             belief_space_size=belief_size
         )
 
-        ca_solution, ca_chromatic = ca.solve(max_generations=max_gen)
-        results['Cultural Algorithm'] = (ca_solution, ca_chromatic, 0.0)
+        ca_solution, ca_chromatic, ca_elapsed = ca.solve(max_generations=max_gen)
+        results['Cultural Algorithm'] = (ca_solution, ca_chromatic, ca_elapsed)
 
         # Display all results
         print("\n" + "=" * 70)
@@ -673,4 +797,4 @@ if __name__ == "__main__":
                 print(f"  No valid solution found")
 
     else:
-        print("Invalid choice. Exiting...")
+        print("Invalid choice.  Exiting...")
